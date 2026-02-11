@@ -44,8 +44,8 @@ const mapSalary = (data: any): SalaryRecord => ({
 
 const mapCompany = (data: any): Company => ({
   id: data.id,
-  name: data.name, // Ensure this is mapped directly as string
-  address: data.address, // Ensure this is mapped directly as string
+  name: data.name,
+  address: data.address,
   logoUrl: data.logo_url,
   faviconUrl: data.favicon_url,
   stampUrl: data.stamp_url,
@@ -62,22 +62,57 @@ export const db = {
     // 2. Try Employees Table (Staff)
     const { data: eData } = await supabase.from('employees').select('*').eq('id', id).single();
     if (eData) {
-        const role = eData.role.toLowerCase().includes('supervisor') ? UserRole.SITE_INCHARGE : UserRole.EMPLOYEE;
-        return { id: eData.id, name: eData.name, uan: eData.uan, role, siteId: eData.site_id };
+      const role = eData.role.toLowerCase().includes('supervisor') || eData.role.toLowerCase().includes('safety officer')
+        ? UserRole.SITE_INCHARGE
+        : UserRole.EMPLOYEE;
+      return { id: eData.id, name: eData.name, uan: eData.uan, role, siteId: eData.site_id };
     }
     return null;
   },
 
-  loginHR: async (email: string): Promise<User | null> => {
-    const { data, error } = await supabase.from('users').select('*').eq('email', email).eq('role', 'HR_ADMIN').single();
-    if (error || !data) return null;
-    return { id: data.id, name: data.name, email: data.email, role: UserRole.HR_ADMIN };
+  loginHR: async (email: string, password: string): Promise<User | null> => {
+    const { data, error } = await supabase.rpc('hr_login', {
+      p_email: email,
+      p_password: password,
+      p_client_ip: 'web-client'
+    });
+
+    if (!error && data) {
+      const userRow = (Array.isArray(data) ? data[0] : data) as any;
+      if (userRow?.id) {
+        return {
+          id: userRow.id,
+          name: userRow.name,
+          email: userRow.email,
+          role: UserRole.HR_ADMIN
+        };
+      }
+    }
+
+    // Fallback for old schema without RPC.
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .eq('role', 'HR_ADMIN')
+      .single();
+
+    if (fallbackError || !fallbackData) return null;
+
+    return {
+      id: fallbackData.id,
+      name: fallbackData.name,
+      email: fallbackData.email,
+      role: UserRole.HR_ADMIN
+    };
   },
 
   loginUAN: async (uan: string): Promise<User | null> => {
     const { data, error } = await supabase.from('employees').select('*').eq('uan', uan).eq('status', 'APPROVED').single();
     if (error || !data) return null;
-    const role = data.role.toLowerCase().includes('supervisor') ? UserRole.SITE_INCHARGE : UserRole.EMPLOYEE;
+    const role = data.role.toLowerCase().includes('supervisor') || data.role.toLowerCase().includes('safety officer')
+      ? UserRole.SITE_INCHARGE
+      : UserRole.EMPLOYEE;
     return { id: data.id, name: data.name, uan: data.uan, role, siteId: data.site_id };
   },
 
@@ -109,11 +144,29 @@ export const db = {
     let query = supabase.from('employees').select('*').neq('status', 'INACTIVE');
     if (siteId) query = query.eq('site_id', siteId);
     const { data, error } = await query;
-    if (error) { console.error("Error fetching employees:", error); return []; }
+    if (error) { console.error('Error fetching employees:', error); return []; }
     return data.map(mapEmployee);
   },
 
   addEmployee: async (data: Partial<Employee>) => {
+    const { data: res, error } = await supabase.rpc('upsert_employee', {
+      p_uan: data.uan,
+      p_name: data.name,
+      p_mobile: data.mobile,
+      p_role: data.role,
+      p_site_id: data.siteId,
+      p_bank_name: data.bankName,
+      p_account_number: data.accountNumber,
+      p_ifsc: data.ifsc,
+      p_photo_url: data.photoUrl,
+      p_actor_id: null
+    });
+
+    if (!error && res) {
+      const row = Array.isArray(res) ? res[0] : res;
+      return mapEmployee(row);
+    }
+
     const dbPayload = {
       uan: data.uan,
       name: data.name,
@@ -126,13 +179,13 @@ export const db = {
       account_number: data.accountNumber,
       ifsc: data.ifsc
     };
-    const { data: res, error } = await supabase.from('employees').insert([dbPayload]).select().single();
-    if (error) throw error;
-    return mapEmployee(res);
+    const { data: fallbackRes, error: fallbackError } = await supabase.from('employees').insert([dbPayload]).select().single();
+    if (fallbackError) throw fallbackError;
+    return mapEmployee(fallbackRes);
   },
 
   updateEmployeeStatus: async (id: string, status: EmployeeStatus) => {
-    const { error } = await supabase.from('employees').update({ status: status }).eq('id', id);
+    const { error } = await supabase.from('employees').update({ status }).eq('id', id);
     return !error;
   },
 
@@ -151,18 +204,17 @@ export const db = {
 
   addSite: async (site: Partial<Site>) => {
     const { error } = await supabase.from('sites').insert([{
-        name: site.name,
-        code: site.code,
-        address: site.address,
-        incharge_id: site.inchargeId,
-        status: 'ACTIVE',
-        employee_count: 0
+      name: site.name,
+      code: site.code,
+      address: site.address,
+      incharge_id: site.inchargeId,
+      status: 'ACTIVE',
+      employee_count: 0
     }]);
     return !error;
   },
 
   updateSite: async (id: string, site: Partial<Site>) => {
-    // Dynamically construct update payload to only include defined fields
     const updates: any = {};
     if (site.name !== undefined) updates.name = site.name;
     if (site.code !== undefined) updates.code = site.code;
@@ -173,7 +225,6 @@ export const db = {
     return !error;
   },
 
-  // Soft Delete Site
   deleteSite: async (id: string) => {
     const { error } = await supabase.from('sites').update({ status: 'INACTIVE' }).eq('id', id);
     return !error;
@@ -185,17 +236,15 @@ export const db = {
     if (error || !data) return undefined;
     return mapSalary(data);
   },
-  
+
   getCompanyProfile: async (): Promise<Company | null> => {
-    // Plain text fetch - No decryption
     const { data } = await supabase.from('companies').select('*').limit(1).maybeSingle();
-    
+
     if (!data) return { id: 'new_entry', name: 'HRM Portal', address: '', logoUrl: '', faviconUrl: '', stampUrl: '', signatureUrl: '' };
     return mapCompany(data);
   },
 
   updateCompanyProfile: async (id: string, updates: Partial<Company>) => {
-    // Plain text update - No encryption
     const dbPayload: any = {
       name: updates.name,
       address: updates.address,
@@ -204,7 +253,7 @@ export const db = {
       stamp_url: updates.stampUrl,
       signature_url: updates.signatureUrl
     };
-    
+
     if (id === 'new_entry') {
       const { error } = await supabase.from('companies').insert([dbPayload]);
       return !error;

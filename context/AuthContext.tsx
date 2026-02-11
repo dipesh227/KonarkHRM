@@ -8,6 +8,7 @@ interface AuthContextType {
   loginHR: (email: string, pass: string) => Promise<boolean>;
   loginStaff: (uan: string) => Promise<boolean>;
   logout: () => void;
+  hardResetSession: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -15,6 +16,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const hardResetSession = () => {
+    setUser(null);
+    localStorage.removeItem('konark_uid');
+  };
 
   // Restore session via ID lookup to ensure data is fresh from DB
   useEffect(() => {
@@ -26,11 +32,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (fetchedUser) {
             setUser(fetchedUser);
           } else {
-            // Invalid ID or user deleted
-            localStorage.removeItem('konark_uid');
+            hardResetSession();
           }
         } catch (e) {
-          console.error("Session restore failed", e);
+          console.error('Session restore failed', e);
+          hardResetSession();
         }
       }
       setLoading(false);
@@ -41,11 +47,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const loginHR = async (email: string, pass: string) => {
     setLoading(true);
     try {
-      if (pass !== 'admin123') throw new Error('Invalid Credentials');
-      const user = await db.loginHR(email);
-      if (user) {
-        setUser(user);
-        localStorage.setItem('konark_uid', user.id);
+      const signedInUser = await db.loginHR(email, pass);
+      if (signedInUser) {
+        setUser(signedInUser);
+        localStorage.setItem('konark_uid', signedInUser.id);
         return true;
       }
       return false;
@@ -60,10 +65,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const loginStaff = async (uan: string) => {
     setLoading(true);
     try {
-      const user = await db.loginUAN(uan);
-      if (user) {
-        setUser(user);
-        localStorage.setItem('konark_uid', user.id);
+      const signedInUser = await db.loginUAN(uan);
+      if (signedInUser) {
+        setUser(signedInUser);
+        localStorage.setItem('konark_uid', signedInUser.id);
         return true;
       }
       return false;
@@ -76,12 +81,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('konark_uid');
+    hardResetSession();
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginHR, loginStaff, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginHR, loginStaff, logout, hardResetSession }}>
       {children}
     </AuthContext.Provider>
   );

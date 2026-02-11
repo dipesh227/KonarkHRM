@@ -14,7 +14,7 @@ export const Login = () => {
   // Connect to Company Context for live branding
   const { company } = useCompany();
   
-  const { loginHR, loginStaff, loading } = useAuth();
+  const { loginHR, loginStaff, loading, hardResetSession } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,6 +26,10 @@ export const Login = () => {
       success = await loginHR(email, password);
       if (success) navigate('/hr/dashboard');
     } else {
+      if (!/^\d{12}$/.test(uan)) {
+        setError('Please enter a valid 12-digit UAN.');
+        return;
+      }
       success = await loginStaff(uan);
       if (success) {
         navigate('/emp/profile');
@@ -115,6 +119,9 @@ export const Login = () => {
                     <Mail className="absolute left-3 top-3.5 text-slate-400" size={18} />
                   </div>
                 </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  * Security policy: account locks for 15 minutes after 5 failed HR login attempts.
+                </p>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Password</label>
                   <div className="relative">
@@ -156,6 +163,16 @@ export const Login = () => {
                  <span className="font-bold mr-1">Error:</span> {error}
               </div>
             )}
+
+
+
+            <button
+              type="button"
+              onClick={() => { hardResetSession(); setError('Session cleared. Please login again.'); }}
+              className="w-full text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 underline underline-offset-2"
+            >
+              Hard Reset Session
+            </button>
 
             <button
               type="submit"
