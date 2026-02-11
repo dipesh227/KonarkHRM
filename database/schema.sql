@@ -457,8 +457,11 @@ insert into public.companies(name, address)
 values ('Konark HRM', '');
 
 -- Seed an initial HR Admin user with a securely generated random password.
--- NOTE: The actual password is unknown and must be reset via the application
---       or a manual SQL update after setup.
+-- ⚠️ IMPORTANT: The password is randomly generated and CANNOT be recovered.
+--    You MUST reset it immediately after setup using one of these methods:
+--    1. Run: UPDATE public.users SET password_hash = crypt('your_password', gen_salt('bf')) WHERE email = 'admin@konark.com';
+--    2. Use your application's password reset feature if available
+-- For development/testing only, you may replace gen_random_uuid()::text with a known password like 'admin123'
 insert into public.users(name, email, role, password_hash)
 values (
   'HR Admin',
