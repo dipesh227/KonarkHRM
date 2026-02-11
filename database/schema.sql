@@ -247,6 +247,7 @@ create or replace function public.hr_login(p_email text, p_password text, p_clie
 returns table (id uuid, name text, email text, role public.user_role)
 language plpgsql
 security definer
+set search_path = pg_catalog, public
 as $$
 declare
   v_user public.users;
@@ -336,6 +337,7 @@ create or replace function public.upsert_employee(
 returns setof public.employees
 language plpgsql
 security definer
+set search_path = pg_catalog, public
 as $$
 declare
   v_row public.employees;
@@ -379,6 +381,7 @@ create or replace function public.upsert_salary(
 returns setof public.salary_records
 language plpgsql
 security definer
+set search_path = pg_catalog, public
 as $$
 declare
   v_emp record;

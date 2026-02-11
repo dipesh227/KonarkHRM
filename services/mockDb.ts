@@ -77,9 +77,6 @@ export const db = {
       p_client_ip: 'web-client'
     });
 
-    if (!error && data) {
-      const userRow = Array.isArray(data) ? data[0] : data;
-      if (userRow) {
     // Normalize RPC result: handle both array and object shapes.
     const row = Array.isArray(data) ? (data[0] ?? null) : (data ?? null);
 
@@ -93,27 +90,8 @@ export const db = {
       };
     }
 
-    // If RPC succeeded but returned no rows, credentials are invalid.
-    if (!error && !row) {
-      return null;
-    }
-
-    // Fallback for old schema without RPC (e.g., function missing).
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .eq('role', 'HR_ADMIN')
-      .single();
-
-    if (fallbackError || !fallbackData) return null;
-
-    return {
-      id: fallbackData.id,
-      name: fallbackData.name,
-      email: fallbackData.email,
-      role: UserRole.HR_ADMIN
-    };
+    // Fail closed if the RPC is missing or returns an error.
+    return null;
   },
 
   loginUAN: async (uan: string): Promise<User | null> => {
