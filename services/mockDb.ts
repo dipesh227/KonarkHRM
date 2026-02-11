@@ -89,22 +89,9 @@ export const db = {
       }
     }
 
-    // Fallback for old schema without RPC.
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .eq('role', 'HR_ADMIN')
-      .single();
-
-    if (fallbackError || !fallbackData) return null;
-
-    return {
-      id: fallbackData.id,
-      name: fallbackData.name,
-      email: fallbackData.email,
-      role: UserRole.HR_ADMIN
-    };
+    // If the RPC is unavailable or fails, do not fall back to unauthenticated lookup.
+    // Instead, treat this as a failed login to avoid authentication bypass.
+    return null;
   },
 
   loginUAN: async (uan: string): Promise<User | null> => {
@@ -164,7 +151,9 @@ export const db = {
 
     if (!error && res) {
       const row = Array.isArray(res) ? res[0] : res;
-      return mapEmployee(row);
+      if (row) {
+        return mapEmployee(row);
+      }
     }
 
     const dbPayload = {

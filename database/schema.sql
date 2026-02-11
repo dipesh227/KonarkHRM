@@ -247,6 +247,7 @@ create or replace function public.hr_login(p_email text, p_password text, p_clie
 returns table (id uuid, name text, email text, role public.user_role)
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
 declare
   v_user public.users;
@@ -455,10 +456,13 @@ create policy hr_sessions_dev_all on public.hr_sessions for all using (true) wit
 insert into public.companies(name, address)
 values ('Konark HRM', '');
 
+-- Seed an initial HR Admin user with a securely generated random password.
+-- NOTE: The actual password is unknown and must be reset via the application
+--       or a manual SQL update after setup.
 insert into public.users(name, email, role, password_hash)
 values (
   'HR Admin',
   'admin@konark.com',
   'HR_ADMIN',
-  crypt('admin123', gen_salt('bf'))
+  crypt(gen_random_uuid()::text, gen_salt('bf'))
 );

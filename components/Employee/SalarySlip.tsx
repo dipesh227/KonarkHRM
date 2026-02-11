@@ -11,8 +11,10 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount || 0);
 
 const numberToWords = (value: number): string => {
-  const num = Math.floor(value);
-  if (num === 0) return 'Zero Rupees Only';
+  const rupees = Math.floor(value);
+  const paise = Math.round((value - rupees) * 100);
+  
+  if (rupees === 0 && paise === 0) return 'Zero Rupees Only';
 
   const units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
   const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
@@ -28,10 +30,10 @@ const numberToWords = (value: number): string => {
     return `${hundred ? `${units[hundred]} Hundred${rest ? ' ' : ''}` : ''}${rest ? twoDigits(rest) : ''}`.trim();
   };
 
-  const crore = Math.floor(num / 10000000);
-  const lakh = Math.floor((num % 10000000) / 100000);
-  const thousand = Math.floor((num % 100000) / 1000);
-  const hundredPart = num % 1000;
+  const crore = Math.floor(rupees / 10000000);
+  const lakh = Math.floor((rupees % 10000000) / 100000);
+  const thousand = Math.floor((rupees % 100000) / 1000);
+  const hundredPart = rupees % 1000;
 
   const parts = [
     crore ? `${threeDigits(crore)} Crore` : '',
@@ -40,7 +42,11 @@ const numberToWords = (value: number): string => {
     hundredPart ? threeDigits(hundredPart) : ''
   ].filter(Boolean);
 
-  return `${parts.join(' ')} Rupees Only`;
+  let result = parts.length > 0 ? `${parts.join(' ')} Rupees` : 'Zero Rupees';
+  if (paise > 0) {
+    result += ` and ${twoDigits(paise)} Paise`;
+  }
+  return `${result} Only`;
 };
 
 export const SalarySlip = () => {

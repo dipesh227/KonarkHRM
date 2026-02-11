@@ -23,6 +23,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Restore session via ID lookup to ensure data is fresh from DB
+  // SECURITY NOTE: This session restoration relies on localStorage user ID and is
+  // vulnerable to session spoofing if RLS policies are permissive. For production,
+  // implement proper session token validation via a backend RPC that validates
+  // opaque session tokens against the hr_sessions table instead of raw user IDs.
   useEffect(() => {
     const initSession = async () => {
       const storedUid = localStorage.getItem('konark_uid');
