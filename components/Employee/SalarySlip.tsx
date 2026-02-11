@@ -12,7 +12,7 @@ const formatCurrency = (amount: number) =>
 
 const numberToWords = (value: number): string => {
   const rupees = Math.floor(value);
-  const paise = Math.round((value - rupees) * 100);
+  const paise = Math.round(value * 100) % 100;
   
   if (rupees === 0 && paise === 0) return 'Zero Rupees Only';
 
