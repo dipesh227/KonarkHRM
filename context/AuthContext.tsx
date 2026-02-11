@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User } from '../types';
 import { db } from '../services/mockDb';
+import { authenticateHR } from '../services/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -38,19 +39,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initSession();
   }, []);
 
-  const loginHR = async (email: string, pass: string) => {
+  const loginHR = async (email: string, password: string) => {
     setLoading(true);
     try {
-      if (pass !== 'admin123') throw new Error('Invalid Credentials');
-      const user = await db.loginHR(email);
-      if (user) {
-        setUser(user);
-        localStorage.setItem('konark_uid', user.id);
+      // Use the new database authentication service
+      const result = await authenticateHR(email, password);
+
+      if (result.success && result.user) {
+        setUser(result.user);
+        localStorage.setItem('konark_uid', result.user.id);
         return true;
       }
+
+      // Login failed - error message already logged by authenticateHR
+      console.error('Login failed:', result.error);
       return false;
     } catch (e) {
-      console.error(e);
+      console.error('Login exception:', e);
       return false;
     } finally {
       setLoading(false);

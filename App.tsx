@@ -5,6 +5,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { CompanyProvider } from './context/CompanyContext';
 import { Layout } from './components/Layout/Layout';
+import LandingPage from './components/Landing/LandingPage';
 import { Login } from './components/Auth/Login';
 import { HRDashboard } from './components/HR/HRDashboard';
 import { EmployeeDirectory } from './components/HR/EmployeeDirectory';
@@ -26,9 +27,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
 const AppRoutes = () => {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      
+
       <Route path="/hr/dashboard" element={<ProtectedRoute><HRDashboard /></ProtectedRoute>} />
       <Route path="/hr/employees" element={<ProtectedRoute><EmployeeDirectory /></ProtectedRoute>} />
       <Route path="/hr/approvals" element={<ProtectedRoute><EmployeeDirectory /></ProtectedRoute>} />
@@ -58,8 +59,8 @@ export default function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
         <div className="flex flex-col items-center gap-4">
-           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue"></div>
-           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Connecting to Server...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue"></div>
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Connecting to Server...</p>
         </div>
       </div>
     );
@@ -69,17 +70,17 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 p-4 font-sans">
         <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl text-center max-w-sm w-full border border-red-100 dark:border-red-900/30">
-           <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-             <AlertTriangle size={32} />
-           </div>
-           <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Connection Error</h2>
-           <p className="text-slate-500 dark:text-slate-400 mb-6">Database not connected.</p>
-           <button 
-             onClick={() => window.location.reload()} 
-             className="w-full py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-lg font-medium hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors flex items-center justify-center gap-2"
-           >
-             <RefreshCw size={18} /> Retry Connection
-           </button>
+          <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle size={32} />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Connection Error</h2>
+          <p className="text-slate-500 dark:text-slate-400 mb-6">Database not connected.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-lg font-medium hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors flex items-center justify-center gap-2"
+          >
+            <RefreshCw size={18} /> Retry Connection
+          </button>
         </div>
       </div>
     );
