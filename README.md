@@ -18,3 +18,8 @@ View your app in AI Studio: https://ai.studio/apps/drive/1ghFjmQkyMMjzVEZsZA7tT6
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Database setup (Supabase)
+
+If your Supabase project is empty, run `database/schema.sql` in the Supabase SQL editor first.
+This script creates all tables used by the app (`users`, `sites`, `employees`, `salary_records`, `companies`), enums, indexes, and development RLS policies.
