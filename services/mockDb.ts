@@ -73,16 +73,20 @@ export const db = {
   loginHR: async (email: string, password: string): Promise<User | null> => {
     const { data, error } = await supabase.rpc('hr_login', {
       p_email: email,
-      p_password: password
+      p_password: password,
+      p_client_ip: 'web-client'
     });
 
     if (!error && data) {
-      return {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: UserRole.HR_ADMIN
-      };
+      const userRow = Array.isArray(data) ? data[0] : data;
+      if (userRow) {
+        return {
+          id: userRow.id,
+          name: userRow.name,
+          email: userRow.email,
+          role: UserRole.HR_ADMIN
+        };
+      }
     }
 
     // Fallback for old schema without RPC.

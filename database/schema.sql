@@ -1,4 +1,4 @@
--- Konark HR & Salary Management System (Standard Edition v1.1)
+-- Konark HR & Salary Management System (Standard Edition v1.2)
 -- WARNING: This script DROPS existing app DB objects before recreating from scratch.
 
 create extension if not exists "pgcrypto";
@@ -10,13 +10,16 @@ drop trigger if exists trg_touch_company_updated_at on public.companies;
 drop trigger if exists trg_sync_site_counts_from_employee_change on public.employees;
 
 drop function if exists public.touch_company_updated_at();
+drop function if exists public.touch_updated_at();
 drop function if exists public.refresh_site_employee_count(uuid);
 drop function if exists public.sync_site_counts_from_employee_change();
 drop function if exists public.hr_login(text, text);
+drop function if exists public.hr_login(text, text, text);
 drop function if exists public.upsert_employee(varchar, text, varchar, text, uuid, text, text, text, text, uuid);
 drop function if exists public.upsert_salary(uuid, varchar, integer, numeric, numeric, numeric, numeric, integer, uuid, boolean);
 drop function if exists public.write_audit_log(text, text, uuid, jsonb, uuid);
 
+drop table if exists public.hr_sessions cascade;
 drop table if exists public.audit_logs cascade;
 drop table if exists public.salary_records cascade;
 drop table if exists public.employees cascade;
@@ -44,6 +47,12 @@ create table public.users (
   email text not null unique,
   role public.user_role not null default 'HR_ADMIN',
   password_hash text not null,
+  is_active boolean not null default true,
+  failed_login_attempts integer not null default 0,
+  locked_until timestamptz,
+  last_login_at timestamptz,
+  last_login_ip text,
+  password_updated_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -121,6 +130,15 @@ create table public.audit_logs (
   payload jsonb,
   actor_id uuid,
   created_at timestamptz not null default now()
+);
+
+create table public.hr_sessions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  session_token text not null unique,
+  issued_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  revoked_at timestamptz
 );
 
 alter table public.sites add constraint fk_sites_incharge_id foreign key (incharge_id) references public.employees(id) on delete set null;
@@ -225,19 +243,81 @@ execute function public.sync_site_counts_from_employee_change();
 -- =========================================================
 -- 5) RPC FUNCTIONS (APP CONTRACT)
 -- =========================================================
-create or replace function public.hr_login(p_email text, p_password text)
+create or replace function public.hr_login(p_email text, p_password text, p_client_ip text default null)
 returns table (id uuid, name text, email text, role public.user_role)
 language plpgsql
 security definer
 as $$
+declare
+  v_user public.users;
+  v_is_password_valid boolean;
+  v_attempts integer;
+  v_session_token text;
 begin
+  select * into v_user
+  from public.users
+  where lower(users.email) = lower(p_email)
+    and users.role = 'HR_ADMIN'
+  limit 1
+  for update;
+
+  if v_user.id is null then
+    perform public.write_audit_log('LOGIN_FAILED', 'users', null, jsonb_build_object('email', p_email, 'reason', 'USER_NOT_FOUND'), null);
+    return;
+  end if;
+
+  if not v_user.is_active then
+    perform public.write_audit_log('LOGIN_FAILED', 'users', v_user.id, jsonb_build_object('reason', 'USER_INACTIVE'), v_user.id);
+    return;
+  end if;
+
+  if v_user.locked_until is not null and v_user.locked_until > now() then
+    perform public.write_audit_log('LOGIN_BLOCKED', 'users', v_user.id, jsonb_build_object('reason', 'ACCOUNT_LOCKED', 'locked_until', v_user.locked_until), v_user.id);
+    return;
+  end if;
+
+  v_is_password_valid := v_user.password_hash = crypt(p_password, v_user.password_hash);
+
+  if not v_is_password_valid then
+    v_attempts := v_user.failed_login_attempts + 1;
+
+    update public.users
+    set failed_login_attempts = v_attempts,
+        locked_until = case when v_attempts >= 5 then now() + interval '15 minutes' else null end,
+        last_login_ip = p_client_ip
+    where users.id = v_user.id;
+
+    perform public.write_audit_log(
+      'LOGIN_FAILED',
+      'users',
+      v_user.id,
+      jsonb_build_object(
+        'reason', 'INVALID_PASSWORD',
+        'attempt', v_attempts,
+        'locked', v_attempts >= 5
+      ),
+      v_user.id
+    );
+    return;
+  end if;
+
+  update public.users
+  set failed_login_attempts = 0,
+      locked_until = null,
+      last_login_at = now(),
+      last_login_ip = p_client_ip
+  where users.id = v_user.id;
+
+  v_session_token := encode(gen_random_bytes(32), 'hex');
+  insert into public.hr_sessions(user_id, session_token, expires_at)
+  values (v_user.id, v_session_token, now() + interval '8 hours');
+
+  perform public.write_audit_log('LOGIN_SUCCESS', 'users', v_user.id, jsonb_build_object('ip', p_client_ip, 'session_token', v_session_token), v_user.id);
+
   return query
   select u.id, u.name, u.email, u.role
   from public.users u
-  where lower(u.email) = lower(p_email)
-    and u.role = 'HR_ADMIN'
-    and u.password_hash = crypt(p_password, u.password_hash)
-  limit 1;
+  where u.id = v_user.id;
 end;
 $$;
 
@@ -344,6 +424,9 @@ create index idx_employees_uan on public.employees(uan);
 create index idx_salary_records_uan_month on public.salary_records(uan, month);
 create index idx_sites_status on public.sites(status);
 create index idx_audit_logs_created_at on public.audit_logs(created_at desc);
+create index idx_users_email_role on public.users(lower(email), role);
+create index idx_users_login_lock on public.users(locked_until);
+create index idx_hr_sessions_user_expires on public.hr_sessions(user_id, expires_at);
 
 -- =========================================================
 -- 7) RLS (STANDARD, SITE-SCOPED)
@@ -354,6 +437,7 @@ alter table public.employees enable row level security;
 alter table public.salary_records enable row level security;
 alter table public.companies enable row level security;
 alter table public.audit_logs enable row level security;
+alter table public.hr_sessions enable row level security;
 
 -- NOTE: This project currently uses a client key without Supabase Auth identities.
 -- To keep app functional in this mode, permissive policies are applied.
@@ -363,6 +447,7 @@ create policy employees_dev_all on public.employees for all using (true) with ch
 create policy salary_records_dev_all on public.salary_records for all using (true) with check (true);
 create policy companies_dev_all on public.companies for all using (true) with check (true);
 create policy audit_logs_dev_all on public.audit_logs for all using (true) with check (true);
+create policy hr_sessions_dev_all on public.hr_sessions for all using (true) with check (true);
 
 -- =========================================================
 -- 8) SEED DATA

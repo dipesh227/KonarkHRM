@@ -22,4 +22,4 @@ View your app in AI Studio: https://ai.studio/apps/drive/1ghFjmQkyMMjzVEZsZA7tT6
 ## Database setup (Supabase)
 
 If your Supabase project is empty, run `database/schema.sql` in the Supabase SQL editor first.
-This script first drops existing app tables/functions/types, then recreates everything from scratch (including RPCs `hr_login`, `upsert_employee`, `upsert_salary`, `audit_logs`, triggers, and development RLS policies).
+This script first drops existing app tables/functions/types, then recreates everything from scratch (including RPCs `hr_login`, `upsert_employee`, `upsert_salary`, audit logs, HR session tracking, account lockout fields, triggers, and development RLS policies).

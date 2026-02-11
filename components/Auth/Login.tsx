@@ -119,6 +119,9 @@ export const Login = () => {
                     <Mail className="absolute left-3 top-3.5 text-slate-400" size={18} />
                   </div>
                 </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  * Security policy: account locks for 15 minutes after 5 failed HR login attempts.
+                </p>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Password</label>
                   <div className="relative">
