@@ -16,7 +16,8 @@ import {
   Sun,
   Moon,
   IdCard,
-  Building
+  Building,
+  WalletCards
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -55,6 +56,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
           { icon: UsersRound, label: 'Employee Directory', path: '/hr/employees' },
           { icon: ClipboardCheck, label: 'Approvals', path: '/hr/approvals' },
           { icon: MapPin, label: 'Site Management', path: '/hr/sites' },
+          { icon: WalletCards, label: 'Payroll Import', path: '/hr/payroll-import' },
           { icon: Settings, label: 'Company Profile', path: '/hr/company-profile' },
         ];
       case UserRole.SITE_INCHARGE:
