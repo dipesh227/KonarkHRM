@@ -10,6 +10,7 @@ import { HRDashboard } from './components/HR/HRDashboard';
 import { EmployeeDirectory } from './components/HR/EmployeeDirectory';
 import { CompanyProfile } from './components/HR/CompanyProfile';
 import { SiteManagement } from './components/HR/SiteManagement';
+import { PayrollUpload } from './components/HR/PayrollUpload';
 import { NewEmployeeForm } from './components/Site/NewEmployeeForm';
 import { SalarySlip } from './components/Employee/SalarySlip';
 import { checkConnection } from './services/supabase';
@@ -32,6 +33,7 @@ const AppRoutes = () => {
       <Route path="/hr/employees" element={<ProtectedRoute><EmployeeDirectory /></ProtectedRoute>} />
       <Route path="/hr/approvals" element={<ProtectedRoute><EmployeeDirectory /></ProtectedRoute>} />
       <Route path="/hr/sites" element={<ProtectedRoute><SiteManagement /></ProtectedRoute>} />
+      <Route path="/hr/payroll-import" element={<ProtectedRoute><PayrollUpload /></ProtectedRoute>} />
       <Route path="/hr/company-profile" element={<ProtectedRoute><CompanyProfile /></ProtectedRoute>} />
 
       <Route path="/site/onboard" element={<ProtectedRoute><NewEmployeeForm /></ProtectedRoute>} />
