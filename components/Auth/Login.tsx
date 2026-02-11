@@ -163,9 +163,6 @@ export const Login = () => {
                  <span className="font-bold mr-1">Error:</span> {error}
               </div>
             )}
-
-
-
             <button
               type="button"
               onClick={() => { hardResetSession(); setError('Session cleared. Please login again.'); }}
