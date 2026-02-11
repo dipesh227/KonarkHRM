@@ -455,10 +455,11 @@ create policy hr_sessions_dev_all on public.hr_sessions for all using (true) wit
 insert into public.companies(name, address)
 values ('Konark HRM', '');
 
+-- Seed initial HR Admin user with a random password that MUST be reset/rotated after deployment.
 insert into public.users(name, email, role, password_hash)
 values (
   'HR Admin',
   'admin@konark.com',
   'HR_ADMIN',
-  crypt('admin123', gen_salt('bf'))
+  crypt(gen_random_uuid()::text, gen_salt('bf'))
 );
